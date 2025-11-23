@@ -13,10 +13,9 @@ from tensorflow.keras import layers
 from tensorflow.keras import backend as K
 
 
-config = tf.compat.v1.ConfigProto()
-config.intra_op_parallelism_threads = 1
-config.inter_op_parallelism_threads = 1
-tf.compat.v1.Session(config=config)
+# Configure TensorFlow threading
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -307,10 +306,17 @@ def _create_protein_pairs(x_test_encoded, row_names, correlation_type="pearson")
     """
     Create pairs of proteins based on their encoded latent spaces.
 
+    FAVA uses ALL THREE VAE encoder outputs (z_mean, z_log_sigma, z) concatenated
+    to create a richer representation for correlation analysis. This captures:
+    - z_mean: Mean latent embedding
+    - z_log_sigma: Uncertainty/variance in latent space
+    - z: Stochastic sample from the distribution
+
     Parameters
     ----------
     x_test_encoded : np.ndarray
-        Encoded latent spaces.
+        Encoded latent spaces with shape (3, n_samples, latent_dim)
+        where dim 0 contains [z_mean, z_log_sigma, z]
     row_names : list
         List of row names corresponding to the data.
     correlation_type : str
@@ -322,26 +328,18 @@ def _create_protein_pairs(x_test_encoded, row_names, correlation_type="pearson")
         DataFrame containing protein pairs and correlation scores.
     """
     start_time = time.time()
-    # Concatenate latent spaces
-    df_x_test_encoded_0 = pd.DataFrame(x_test_encoded[0, :, :])
-    df_x_test_encoded_1 = pd.DataFrame(x_test_encoded[1, :, :])
-    df_x_test_encoded_2 = pd.DataFrame(x_test_encoded[2, :, :])
-
-    df_x_test_encoded_01 = pd.merge(
-        df_x_test_encoded_0, df_x_test_encoded_1, left_index=True, right_index=True
-    )
-    df_x_test_encoded = pd.merge(
-        df_x_test_encoded_01, df_x_test_encoded_2, left_index=True, right_index=True
-    )
-
-    df_x_test_encoded = np.asarray(df_x_test_encoded)
+    
+    # Reshape from (3, n_samples, latent_dim) to (n_samples, 3*latent_dim)
+    # This concatenates z_mean, z_log_sigma, and z horizontally
+    n_outputs, n_samples, latent_dim = x_test_encoded.shape
+    x_concatenated = x_test_encoded.transpose(1, 0, 2).reshape(n_samples, -1)
 
     # Correlation of the latent space: Pearson or Spearman
     if correlation_type == "spearman":
-        corr = pd.DataFrame(df_x_test_encoded.T).corr(method="spearman")
+        corr = pd.DataFrame(x_concatenated.T).corr(method="spearman")
         corr.columns = corr.index = row_names
     else:
-        corr = np.corrcoef(df_x_test_encoded)
+        corr = np.corrcoef(x_concatenated)
         corr = pd.DataFrame(corr, columns=row_names, index=row_names)
 
     correlation_df = corr.stack().reset_index()
