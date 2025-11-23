@@ -9,6 +9,7 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 import pandas as pd
+import time
 from tensorflow.keras import layers
 from tensorflow.keras import backend as K
 
@@ -223,83 +224,6 @@ class VAE(tf.keras.Model):
         )
 
 
-######### Code for multiprocessing correlations --> slower #########
-import multiprocessing as mp
-import time
-
-
-def _calculate_correlation(sub_df, correlation_type):
-    if correlation_type == "spearman":
-        corr = sub_df.corr(method="spearman")
-    else:
-        corr_matrix = np.corrcoef(sub_df)
-        corr = pd.DataFrame(corr_matrix, index=sub_df.index, columns=sub_df.index)
-    return corr
-
-
-def _create_protein_pairs_parallel(
-    x_test_encoded, row_names, correlation_type="pearson", num_processes=4
-):
-    start_time = time.time()
-
-    df_x_test_encoded = pd.concat(
-        [pd.DataFrame(x_test_encoded[i, :, :]) for i in range(x_test_encoded.shape[0])],
-        axis=1,
-    )
-    df_x_test_encoded.index = row_names
-
-    # Split DataFrame into chunks for parallel processing
-    chunks = [df_x_test_encoded.iloc[i::num_processes] for i in range(num_processes)]
-    print(chunks)
-    # Create a pool of processes
-    pool = mp.Pool(processes=num_processes)
-
-    # Calculate correlations in parallel
-    results = [
-        pool.apply_async(_calculate_correlation, args=(chunk, correlation_type))
-        for chunk in chunks
-    ]
-
-    correlations = pd.DataFrame(columns=row_names, index=row_names)
-    for r in results:
-        corr_chunk = r.get()
-        for idx in corr_chunk.index:
-            correlations.loc[idx, corr_chunk.columns] = corr_chunk.loc[idx, :]
-
-    pool.close()
-    pool.join()
-
-    threshold = 0.85
-    threshold_decrement = 0.05
-    max_iterations = 5
-
-    for _ in range(max_iterations):
-        high_corr = correlations.where(
-            (np.abs(correlations) > threshold) & (np.abs(correlations) < 1)
-        )
-
-        if high_corr.stack().empty:
-            threshold -= threshold_decrement  # Decrease the threshold
-            print(
-                f"No correlations above threshold. Decreasing threshold to {threshold}"
-            )
-            if threshold <= 0:
-                print("Threshold reached 0. No further reduction possible.")
-                break
-        else:
-            correlation_df = high_corr.stack().reset_index()
-            print(f"Correlations found above threshold {threshold}.")
-            end_time = time.time()
-            break
-
-    total_time = end_time - start_time
-    print(f"Total time taken: {total_time} seconds")
-    correlation_df.columns = ["Protein_1", "Protein_2", "Score"]
-
-    return correlation_df
-
-
-###################################################################################################
 
 
 def _create_protein_pairs(x_test_encoded, row_names, correlation_type="pearson"):
@@ -335,12 +259,8 @@ def _create_protein_pairs(x_test_encoded, row_names, correlation_type="pearson")
     x_concatenated = x_test_encoded.transpose(1, 0, 2).reshape(n_samples, -1)
 
     # Correlation of the latent space: Pearson or Spearman
-    if correlation_type == "spearman":
-        corr = pd.DataFrame(x_concatenated.T).corr(method="spearman")
-        corr.columns = corr.index = row_names
-    else:
-        corr = np.corrcoef(x_concatenated)
-        corr = pd.DataFrame(corr, columns=row_names, index=row_names)
+    corr = pd.DataFrame(x_concatenated.T).corr(method=correlation_type)
+    corr.columns = corr.index = row_names
 
     correlation_df = corr.stack().reset_index()
 
