@@ -179,10 +179,12 @@ def _create_protein_pairs(x_test_encoded, row_names, correlation_type="pearson")
     x_concat = x_test_encoded.transpose(1, 0, 2).reshape(n_samples, -1)
     
     # Compute correlation matrix using NumPy/SciPy (faster than pandas)
+    # x_concat is (n_genes, 3*latent_dim), correlate rows (genes)
     if correlation_type == "pearson":
-        corr_matrix = np.corrcoef(x_concat.T)
+        corr_matrix = np.corrcoef(x_concat)
     else:  # spearman
-        corr_matrix = stats.spearmanr(x_concat.T)[0]
+        # Transpose so genes are columns, correlate along axis 0 (across features)
+        corr_matrix, _ = stats.spearmanr(x_concat.T, axis=0)
     
     # Extract upper triangle only (avoids AB-BA duplicates and self-loops)
     n_genes = len(row_names)
