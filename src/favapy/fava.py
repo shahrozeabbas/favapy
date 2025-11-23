@@ -6,11 +6,11 @@ warnings.filterwarnings("ignore")
 
 import anndata
 import tensorflow as tf
-import keras
+from tensorflow import keras
 import numpy as np
 import pandas as pd
-from keras import layers
-from keras import backend as K
+from tensorflow.keras import layers
+from tensorflow.keras import backend as K
 
 
 config = tf.compat.v1.ConfigProto()
@@ -138,7 +138,7 @@ def _load_data(input_file, data_type):
     return expr, row_names
 
 
-class VAE(keras.Model):
+class VAE(tf.keras.Model):
     """
     Variational Autoencoder model class.
 
@@ -174,7 +174,7 @@ class VAE(keras.Model):
         epochs,
     ):
         super(VAE, self).__init__()
-        inputs = keras.Input(shape=(original_dim,))
+        inputs = tf.keras.Input(shape=(original_dim,))
         h = layers.Dense(hidden_layer, activation="relu")(inputs)
 
         z_mean = layers.Dense(latent_dim)(h)
@@ -191,22 +191,22 @@ class VAE(keras.Model):
         z = layers.Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_sigma])
 
         # Create encoder
-        encoder = keras.Model(inputs, [z_mean, z_log_sigma, z], name="encoder")
+        encoder = tf.keras.Model(inputs, [z_mean, z_log_sigma, z], name="encoder")
         self.encoder = encoder
         # Create decoder
-        latent_inputs = keras.Input(shape=(latent_dim,), name="z_sampling")
+        latent_inputs = tf.keras.Input(shape=(latent_dim,), name="z_sampling")
         x = layers.Dense(hidden_layer, activation="relu")(latent_inputs)
 
         outputs = layers.Dense(original_dim, activation="sigmoid")(x)
-        decoder = keras.Model(latent_inputs, outputs, name="decoder")
+        decoder = tf.keras.Model(latent_inputs, outputs, name="decoder")
         self.decoder = decoder
 
         # instantiate VAE model
         outputs = decoder(encoder(inputs)[2])
-        vae = keras.Model(inputs, outputs, name="vae_mlp")
+        vae = tf.keras.Model(inputs, outputs, name="vae_mlp")
 
         # loss
-        reconstruction_loss = keras.losses.mean_squared_error(inputs, outputs)
+        reconstruction_loss = tf.keras.losses.mean_squared_error(inputs, outputs)
         reconstruction_loss *= original_dim
         kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
         kl_loss = K.sum(kl_loss, axis=-1)
@@ -423,9 +423,12 @@ def cook(
         Filtered protein pairs based on correlation and cutoffs.
     """
     if isinstance(data, anndata.AnnData):
-        data.X = data.X.toarray()
+        # Convert sparse matrix to dense if needed, without mutating original
+        if hasattr(data.X, 'toarray'):
+            x = data.X.toarray().T
+        else:
+            x = np.asarray(data.X).T
         data.var.index.name = None
-        x = data.X.T
         row_names = data.var.index
     else:
         x = np.asarray(data, dtype=np.float32)
