@@ -68,41 +68,34 @@ class VAE(tf.keras.Model):
         decoder = tf.keras.Model(latent_inputs, outputs, name="decoder")
         self.decoder = decoder
 
-        # instantiate VAE model with custom loss
+        # instantiate VAE model
         outputs = decoder(encoder(inputs)[2])
-        
-        # Convert original_dim to a constant tensor for use in Lambda layer
-        original_dim_tensor = K.constant(original_dim, dtype='float32')
-        
-        # Define custom loss function inside Lambda layer
-        def vae_loss_fn(args):
-            inputs_t, outputs_t, z_mean_t, z_log_sigma_t, orig_dim = args
-            # Reconstruction loss
-            recon_loss = K.mean(K.square(inputs_t - outputs_t), axis=-1) * orig_dim
-            # KL divergence loss
-            kl = K.sum(1 + z_log_sigma_t - K.square(z_mean_t) - K.exp(z_log_sigma_t), axis=-1) * -0.5
-            # Combined: 90% reconstruction + 10% KL
-            return K.mean(0.9 * recon_loss + 0.1 * kl)
-        
-        # Wrap loss computation in Lambda layer
-        vae_loss = layers.Lambda(
-            vae_loss_fn,
-            output_shape=(1,),
-            name='vae_loss'
-        )([inputs, outputs, z_mean, z_log_sigma, original_dim_tensor])
-        
-        # Create model and add custom loss
         vae = tf.keras.Model(inputs, outputs, name="vae_mlp")
-        vae.add_loss(vae_loss)
         
-        # Compile without specifying loss (custom loss already added)
-        vae.compile(optimizer=opt, metrics=["mse"])
+        # Define custom loss function (Keras 3.x compatible)
+        # z_mean and z_log_sigma are captured from the enclosing scope via closure
+        def vae_loss_function(y_true, y_pred):
+            """Custom VAE loss: 90% reconstruction + 10% KL divergence."""
+            # Reconstruction loss (MSE per sample)
+            reconstruction_loss = K.mean(K.square(y_true - y_pred), axis=-1)
+            reconstruction_loss *= original_dim
+            
+            # KL divergence loss per sample
+            kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
+            kl_loss = K.sum(kl_loss, axis=-1)
+            kl_loss *= -0.5
+            
+            # Combined: 90% reconstruction + 10% KL
+            return 0.9 * reconstruction_loss + 0.1 * kl_loss
+        
+        # Compile with custom loss function
+        vae.compile(optimizer=opt, loss=vae_loss_function, metrics=["mse"])
         
         vae.fit(
             x_train,
             x_train,
-            batch_size=batch_size,
             epochs=epochs,
+            batch_size=batch_size,
             validation_data=(x_test, x_test),
         )
 
