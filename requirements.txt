@@ -1,5 +1,5 @@
 tensorflow>=2
-numpy<2.0
+numpy
 pandas
 anndata
 scipy
