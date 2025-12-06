@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 import logging
 import argparse
 import warnings
 import random
+from typing import Optional, Union
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings('ignore')
 
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import anndata
 
 from .models import VAE
 from .utils import (
@@ -22,8 +26,7 @@ from .utils import (
 tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def custom_formatwarning(msg, *args, **kwargs):
@@ -101,18 +104,18 @@ def argument_parser():
 
 
 def cook(
-    data,
-    log2_normalization=True,
-    hidden_layer=None,
-    latent_dim=None,
-    epochs=50,
-    batch_size=32,
-    interaction_count=100000,
-    correlation_type="pearson",
-    CC_cutoff=None,
-    layer=None,
-    random_seed=None,
-):
+    data: Union[anndata.AnnData, pd.DataFrame],
+    log2_normalization: bool = True,
+    hidden_layer: Optional[int] = None,
+    latent_dim: Optional[int] = None,
+    epochs: int = 50,
+    batch_size: int = 32,
+    interaction_count: int = 100000,
+    correlation_type: str = 'pearson',
+    CC_cutoff: Optional[float] = None,
+    layer: Optional[str] = None,
+    random_seed: Optional[int] = None,
+) -> pd.DataFrame:
     """
     Preprocess data, train a Variational Autoencoder (VAE), and create filtered protein pairs.
 

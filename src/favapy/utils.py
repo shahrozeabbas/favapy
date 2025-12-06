@@ -1,14 +1,18 @@
 """Utility functions for data preprocessing and correlation analysis."""
 
+from __future__ import annotations
+
 import logging
 import time
+from typing import Optional, Union
+
 import numpy as np
 import pandas as pd
 import anndata
 from scipy import stats
 
 
-def _preprocess_expression(x):
+def _preprocess_expression(x: np.ndarray) -> np.ndarray:
     """
     Apply log2 transformation and min-max normalization to expression data.
     
@@ -44,9 +48,9 @@ def _preprocess_expression(x):
     return x
 
 
-def _load_data(input_file, data_type):
+def _load_data(input_file: str, data_type: str) -> tuple[np.ndarray, list[str]]:
     """
-    Loads and preprocesses data from a file.
+    Loads data from a file.
 
     Parameters
     ----------
@@ -58,29 +62,19 @@ def _load_data(input_file, data_type):
     Returns
     -------
     expr : np.ndarray
-        Processed data array.
-    row_names : list
-        List of row names corresponding to the data.
+        Data array with shape (n_genes, n_samples).
+    row_names : list[str]
+        List of row names (gene/protein identifiers).
     """
-    row_names = []
-    array = []
-    with open(input_file, "r", encoding="utf-8") as infile:
-        next(infile)
-        for line in infile:
-            if data_type == "tsv":
-                line = line.split("\t")
-            else:
-                line = line.split(",")
-            row_names.append(line[0])
-            array.append(line[1:])
-
-    expr = np.asarray(array, dtype=np.float32)
-
-    # Return raw data without preprocessing - cook() will handle it
-    return expr, row_names
+    sep = '\t' if data_type == 'tsv' else ','
+    df = pd.read_csv(input_file, sep=sep, index_col=0)
+    return df.values.astype(np.float32), df.index.tolist()
 
 
-def _extract_data(data, layer=None):
+def _extract_data(
+    data: Union[anndata.AnnData, pd.DataFrame],
+    layer: Optional[str] = None
+) -> tuple[np.ndarray, list[str]]:
     """
     Extract matrix and gene names from AnnData or pandas DataFrame.
     
@@ -96,7 +90,7 @@ def _extract_data(data, layer=None):
     -------
     x : np.ndarray
         Expression matrix with shape (n_genes, n_cells).
-    row_names : list
+    row_names : list[str]
         Gene/protein names.
     
     Raises
@@ -147,8 +141,13 @@ def _extract_data(data, layer=None):
     return x, row_names
 
 
-def _create_protein_pairs(x_test_encoded, row_names, correlation_type="pearson",
-                          interaction_count=100000, CC_cutoff=None):
+def _create_protein_pairs(
+    x_test_encoded: np.ndarray,
+    row_names: list[str],
+    correlation_type: str = 'pearson',
+    interaction_count: int = 100000,
+    CC_cutoff: Optional[float] = None
+) -> pd.DataFrame:
     """
     Create pairs of proteins based on their encoded latent spaces.
 
@@ -163,10 +162,10 @@ def _create_protein_pairs(x_test_encoded, row_names, correlation_type="pearson",
     x_test_encoded : np.ndarray
         Encoded latent spaces with shape (3, n_samples, latent_dim)
         where dim 0 contains [z_mean, z_log_sigma, z]
-    row_names : list
+    row_names : list[str]
         List of row names corresponding to the data.
     correlation_type : str
-        Type of correlation to use (Pearson or Spearman).
+        Type of correlation to use ('pearson' or 'spearman').
     interaction_count : int, optional
         Maximum number of interactions to include, by default 100000.
     CC_cutoff : float, optional
@@ -186,11 +185,16 @@ def _create_protein_pairs(x_test_encoded, row_names, correlation_type="pearson",
     
     # Compute correlation matrix using NumPy/SciPy (faster than pandas)
     # x_concat is (n_genes, 3*latent_dim), correlate rows (genes)
-    if correlation_type == "pearson":
+    if correlation_type == 'pearson':
         corr_matrix = np.corrcoef(x_concat)
-    else:  # spearman
-        # Transpose so genes are columns, correlate along axis 0 (across features)
-        corr_matrix, _ = stats.spearmanr(x_concat.T, axis=0)
+    elif correlation_type == 'spearman':
+        # axis=1 means rows are variables (genes), columns are observations (features)
+        corr_matrix, _ = stats.spearmanr(x_concat, axis=1)
+    else:
+        raise ValueError(
+            f"Invalid correlation_type: '{correlation_type}'. "
+            f"Expected 'pearson' or 'spearman'."
+        )
     
     # Extract upper triangle only (avoids AB-BA duplicates and self-loops)
     n_genes = len(row_names)

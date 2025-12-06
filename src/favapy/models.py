@@ -1,5 +1,8 @@
 """Variational Autoencoder (VAE) model for FAVA."""
 
+from __future__ import annotations
+
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras import backend as K
@@ -31,15 +34,15 @@ class VAE(tf.keras.Model):
 
     def __init__(
         self,
-        opt,
-        x_train,
-        x_test,
-        batch_size,
-        original_dim,
-        hidden_layer,
-        latent_dim,
-        epochs,
-    ):
+        opt: tf.keras.optimizers.Optimizer,
+        x_train: np.ndarray,
+        x_test: np.ndarray,
+        batch_size: int,
+        original_dim: int,
+        hidden_layer: int,
+        latent_dim: int,
+        epochs: int,
+    ) -> None:
         super(VAE, self).__init__()
         
         # Store parameters for use in train_step
@@ -84,66 +87,44 @@ class VAE(tf.keras.Model):
             validation_data=(x_test, x_test),
         )
     
-    def call(self, inputs):
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
         """Forward pass through the VAE."""
         z_mean, z_log_sigma, z = self.encoder(inputs)
         reconstructed = self.decoder(z)
         return reconstructed
     
-    def train_step(self, data):
-        """Custom training step with VAE loss."""
-        x, _ = data  # Unpack data
-        
-        with tf.GradientTape() as tape:
-            # Forward pass
-            z_mean, z_log_sigma, z = self.encoder(x)
-            reconstructed = self.decoder(z)
-            
-            # Reconstruction loss (MSE per sample)
-            reconstruction_loss = K.mean(K.square(x - reconstructed), axis=-1)
-            reconstruction_loss *= self.original_dim
-            
-            # KL divergence loss per sample
-            kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
-            kl_loss = K.sum(kl_loss, axis=-1)
-            kl_loss *= -0.5
-            
-            # Total loss: 90% reconstruction + 10% KL
-            total_loss = K.mean(0.9 * reconstruction_loss + 0.1 * kl_loss)
-        
-        # Compute gradients and update weights
-        grads = tape.gradient(total_loss, self.trainable_weights)
-        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
-        
-        # Update metrics
-        self.compiled_metrics.update_state(x, reconstructed)
-        
-        # Return metrics
-        return {m.name: m.result() for m in self.metrics}
-    
-    def test_step(self, data):
-        """Custom validation step with VAE loss."""
-        x, _ = data  # Unpack data
-        
-        # Forward pass (no GradientTape needed - we're not training)
+    def _compute_loss(self, x: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
+        """Compute VAE loss (reconstruction + KL divergence)."""
         z_mean, z_log_sigma, z = self.encoder(x)
         reconstructed = self.decoder(z)
         
-        # Reconstruction loss (MSE per sample)
         reconstruction_loss = K.mean(K.square(x - reconstructed), axis=-1)
         reconstruction_loss *= self.original_dim
         
-        # KL divergence loss per sample
         kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
-        kl_loss = K.sum(kl_loss, axis=-1)
-        kl_loss *= -0.5
+        kl_loss = K.sum(kl_loss, axis=-1) * -0.5
         
-        # Total loss: 90% reconstruction + 10% KL
         total_loss = K.mean(0.9 * reconstruction_loss + 0.1 * kl_loss)
+        return total_loss, reconstructed
+    
+    def train_step(self, data: tuple) -> dict[str, tf.Tensor]:
+        """Custom training step with VAE loss."""
+        x, _ = data
         
-        # Update metrics
+        with tf.GradientTape() as tape:
+            total_loss, reconstructed = self._compute_loss(x)
+        
+        grads = tape.gradient(total_loss, self.trainable_weights)
+        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
         self.compiled_metrics.update_state(x, reconstructed)
         
-        # Return metrics
-        return {m.name: m.result() for m in self.metrics}
+        return {'loss': total_loss, **{m.name: m.result() for m in self.metrics}}
+    
+    def test_step(self, data: tuple) -> dict[str, tf.Tensor]:
+        """Custom validation step with VAE loss."""
+        x, _ = data
+        total_loss, reconstructed = self._compute_loss(x)
+        self.compiled_metrics.update_state(x, reconstructed)
+        
+        return {'loss': total_loss, **{m.name: m.result() for m in self.metrics}}
 
