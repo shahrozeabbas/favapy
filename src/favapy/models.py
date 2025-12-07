@@ -104,7 +104,7 @@ class VAE(tf.keras.Model):
         kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
         kl_loss = K.sum(kl_loss, axis=-1) * -0.5
         
-        total_loss = K.mean(0.9 * reconstruction_loss + 0.1 * kl_loss)
+        total_loss = K.mean((0.9 * reconstruction_loss) + (0.1 * kl_loss))
         return total_loss, reconstructed
     
     def train_step(self, data: tuple) -> dict[str, tf.Tensor]:
