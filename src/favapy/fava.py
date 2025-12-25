@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import argparse
 import warnings
-import random
 from typing import Optional, Union
 
 warnings.filterwarnings('ignore')
@@ -114,7 +113,6 @@ def cook(
     correlation_type: str = 'pearson',
     CC_cutoff: Optional[float] = None,
     layer: Optional[str] = None,
-    random_seed: Optional[int] = None,
 ) -> pd.DataFrame:
     """
     Preprocess data, train a Variational Autoencoder (VAE), and create filtered protein pairs.
@@ -143,9 +141,6 @@ def cook(
         Correlation Coefficient cutoff, by default None.
     layer : str, optional
         For AnnData input, which layer to use. If None, uses X (default layer).
-    random_seed : int, optional
-        Random seed for reproducibility. If provided, sets seeds for Python's random,
-        NumPy, and TensorFlow. If None, results will vary between runs, by default None.
 
     Returns
     -------
@@ -157,20 +152,14 @@ def cook(
     ValueError
         If input type is not supported or data dimensions are invalid.
     """
-    # Step 1: Set random seeds for reproducibility if provided
-    if random_seed is not None:
-        random.seed(random_seed)
-        np.random.seed(random_seed)
-        tf.random.set_seed(random_seed)
-    
-    # Step 2: Extract matrix and gene names from input
+    # Step 1: Extract matrix and gene names from input
     x, row_names = _extract_data(data, layer=layer)
     
-    # Step 3: Apply preprocessing if enabled
+    # Step 2: Apply preprocessing if enabled
     if log2_normalization:
         x = _preprocess_expression(x)
     
-    # Step 4: Determine architecture dimensions
+    # Step 3: Determine architecture dimensions
     original_dim = x.shape[1]
     
     if hidden_layer is None:
@@ -189,7 +178,7 @@ def cook(
         else:
             latent_dim = max(5, hidden_layer // 10)
     
-    # Step 5: Train VAE and compute correlations
+    # Step 4: Train VAE and compute correlations
     opt = tf.keras.optimizers.Adam(learning_rate=0.001, clipnorm=0.001)
     x_train = x_test = np.array(x)
     
@@ -201,7 +190,7 @@ def cook(
     encoder_outputs = vae.encoder.predict(x_test, batch_size=batch_size)
     x_test_encoded = np.stack(encoder_outputs, axis=0)
     
-    # Step 6: Create and filter protein pairs
+    # Step 5: Create and filter protein pairs
     final_pairs = _create_protein_pairs(
         x_test_encoded, 
         row_names, 
