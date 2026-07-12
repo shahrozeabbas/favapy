@@ -10,7 +10,7 @@ FAVA is a method used to construct protein networks based on omics data such as 
 Read the [documentation](https://fava.readthedocs.io/en/latest/).
 
 
-![Screenshot 2023-08-17 at 10 14 20](https://github.com/mikelkou/fava/assets/81096946/416deeeb-ce89-4ed7-8e2a-6703616552ab)
+![FAVA workflow](docs/source/_static/fava_workflow.png)
 
 
 ## Data availability
