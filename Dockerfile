@@ -7,4 +7,4 @@ COPY src/ ./src/
 
 RUN pip install --no-cache-dir .
 
-CMD ["favapy"]
+CMD ["python", "-c", "import favapy; print(favapy.__version__)"]

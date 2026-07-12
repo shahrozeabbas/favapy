@@ -1,10 +1,10 @@
 [build-system]
-requires = ['setuptools>=42']
-build-backend = 'setuptools.build_meta'
+requires = ['hatchling']
+build-backend = 'hatchling.build'
 
 [project]
 name = 'favapy'
-version = '1.0.1'
+version = '2.0.0'
 description = 'Infer Functional Associations using Variational Autoencoders on -Omics data.'
 readme = 'README.md'
 license = {text = 'MIT'}
@@ -23,7 +23,8 @@ classifiers = [
     'Topic :: Scientific/Engineering :: Bio-Informatics',
 ]
 dependencies = [
-    'tensorflow>=2',
+    'torch>=2.0',
+    'lightning>=2.0',
     'numpy',
     'pandas',
     'anndata',
@@ -31,16 +32,21 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gpu = ['tensorflow[and-cuda]>=2']
 test = ['pytest', 'pytest-cov']
-docs = ['nbsphinx']
 
 [project.urls]
 Homepage = 'https://github.com/mikelkou/VAE_Functional_associations'
 'Bug Tracker' = 'https://github.com/mikelkou/VAE_Functional_associations/issues'
 
-[project.scripts]
-favapy = 'favapy.fava:main'
+[tool.hatch.build]
+sources = ['src']
 
-[tool.setuptools.packages.find]
-where = ['src']
+[tool.hatch.build.targets.wheel]
+packages = ['favapy']
+
+[tool.hatch.build.targets.sdist]
+include = [
+    '/src/favapy',
+    '/README.md',
+    '/LICENSE',
+]

@@ -1,8 +1,10 @@
-sphinx>=3.0
+sphinx
 nbsphinx
-sphinx_rtd_theme
+sphinx-rtd-theme
 ipykernel
-tensorflow
+torch>=2.0
+lightning>=2.0
 numpy
 pandas
 anndata
+scipy

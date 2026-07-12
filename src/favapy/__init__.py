@@ -1,4 +1,4 @@
-from .fava import cook, main
+from .fava import FAVA
 
-__version__ = "1.0.1"
-__all__ = ["cook", "main"]
+__version__ = '2.0.0'
+__all__ = ['FAVA']

@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build setuptools oldest-supported-numpy flake8
+          pip install build hatchling flake8
       - name: Check for syntax errors
         run: |
           flake8 src/favapy --count --select=E9,F63,F7,F82 --show-source --statistics

@@ -7,7 +7,6 @@ Welcome to favapy’s documentation!
    Introduction
    Installation
    Using_FAVA_as_a_Python_library
-   Command_Line_Interface
    API
    Tutorials
 
@@ -29,32 +28,14 @@ You can install FAVA using pip:
 Using FAVA as a Python library
 ------------------------------
 
-You can use FAVA as a Python library. Refer to the following Jupyter notebook for instructions on how to use FAVA in a notebook:
+.. code-block:: python
 
-- `How_to_use_favapy_in_a_notebook.ipynb <https://github.com/mikelkou/fava/blob/main/How_to_use_favapy_in_a_notebook.ipynb>`_
+   from favapy import FAVA
 
+   model = FAVA(data, n_hidden=None, n_latents=None)
+   network = (
+       model.cook(max_epochs=50, batch_size=32)
+       .get_association_network(metric='pearson', interaction_count=100_000)
+   )
 
-Command Line Interface
-----------------------
-
-Run FAVA from the command line as follows:
-
-.. code-block:: bash
-
-   favapy <path-to-data-file> <path-to-save-output>
-
-Optional parameters:
-
-``-t`` Type of input data ('tsv' or 'csv'). Default value = 'tsv'.
-
-``-n`` The number of interactions in the output file (with both directions, proteinA-proteinB and proteinB-proteinA). Default value = 100000.
-
-``-c`` The cut-off on the Pearson Correlation scores. The scores can range from 1 (high correlation) to -1 (high anti-correlation). This option overwrites the number of interactions. Default value = None.
-
-``-d`` The dimensions of the intermediate/hidden layer. Default value depends on the input size.
-
-``-l`` The dimensions of the latent space. Default value depends on the size of the hidden layer.
-
-``-e`` The number of epochs. Default value = 50.
-
-``-b`` The batch size. Default value = 32.
+Refer to the tutorials for more examples.

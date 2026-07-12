@@ -1,16 +1,14 @@
 API
 =====
 
-This section provides documentation for the `fava.py` module.
+This section provides documentation for the public FAVA API.
 
-.. automodule:: fava
+.. automodule:: favapy
    :members:
    :undoc-members:
    :show-inheritance:
-   :exclude-members: argument_parser, custom_formatwarning, main, load_data, create_protein_pairs
 
-   # List the members in the order you want them to appear
+.. autoclass:: favapy.fava.FAVA
    :members:
-       VAE
-       cook
-       pairs_after_cutoff
+   :undoc-members:
+   :show-inheritance:

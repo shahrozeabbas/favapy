@@ -1,6 +1,31 @@
 Using FAVA as a Python library
 ------------------------------
 
-You can use FAVA as a Python library. Refer to the following Jupyter notebook for instructions on how to use FAVA in a notebook:
+FAVA accepts either an ``AnnData`` object or a ``pandas.DataFrame`` with genes as rows and cells/samples as columns.
 
-- `How_to_use_favapy_in_a_notebook.ipynb <https://github.com/mikelkou/fava/blob/main/How_to_use_favapy_in_a_notebook.ipynb>`_
+.. code-block:: python
+
+   from favapy import FAVA
+
+   model = FAVA(
+       data,
+       n_hidden=None,
+       n_latents=None,
+       log2_normalization=True,
+   )
+
+   z_mean = model.cook(max_epochs=50, batch_size=32).get_latent_representation()
+
+   network = model.get_association_network(
+       metric='pearson',
+       interaction_count=100_000,
+       cc_cutoff=None,
+   )
+
+For AnnData inputs stored in a non-default layer:
+
+.. code-block:: python
+
+   model = FAVA(adata, layer='counts')
+
+Refer to the tutorials notebook for a full walkthrough.
