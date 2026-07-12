@@ -71,7 +71,8 @@ jobs:
           pytest -v --cov=favapy --cov-report=xml --color=yes
 
       - name: Upload coverage
-        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        if: matrix.python == '3.12'
         uses: codecov/codecov-action@v4
+        continue-on-error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
