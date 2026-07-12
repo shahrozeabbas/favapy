@@ -32,17 +32,23 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ['pytest', 'pytest-cov']
+test = [
+    'pytest',
+    'pytest-cov',
+]
+docs = [
+    'sphinx',
+    'nbsphinx',
+    'sphinx-rtd-theme',
+    'ipykernel',
+]
 
 [project.urls]
 Homepage = 'https://github.com/mikelkou/VAE_Functional_associations'
 'Bug Tracker' = 'https://github.com/mikelkou/VAE_Functional_associations/issues'
 
-[tool.hatch.build]
-sources = ['src']
-
 [tool.hatch.build.targets.wheel]
-packages = ['favapy']
+packages = ['src/favapy']
 
 [tool.hatch.build.targets.sdist]
 include = [

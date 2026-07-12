@@ -10,23 +10,27 @@ jobs:
     name: Build source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           lfs: 'true'
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build hatchling flake8
+          python -m pip install build hatchling flake8
       - name: Check for syntax errors
         run: |
           flake8 src/favapy --count --select=E9,F63,F7,F82 --show-source --statistics
       - name: Build sdist and wheels
         run: python -m build
-      - uses: actions/upload-artifact@v2
+      - name: Verify wheel imports
+        run: |
+          python -m pip install dist/*.whl
+          python -c 'from favapy import FAVA; print(FAVA.__module__)'
+      - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/*
@@ -36,20 +40,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - id: latest_release
       uses: pozetroninc/github-action-get-latest-release@master
       with:
         owner: mikelkou
         repo: VAE_Functional_associations
     - name: Login to GitHub Container Registry
-      uses: docker/login-action@v1
+      uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Build and push to ghcr.io
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v6
       with:
         context: .
         push: true
@@ -61,11 +65,10 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist
-      - uses: pypa/gh-action-pypi-publish@master
+      - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}

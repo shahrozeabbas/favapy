@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pytest
 import torch
 
 from favapy.data import FAVADataManager, preprocess_expression, resolve_n_hidden, resolve_n_latents
@@ -19,7 +18,10 @@ def test_preprocess_expression_log2_and_minmax():
 def test_preprocess_skips_log2_for_negative_values():
     x = np.array([[-1.0, 2.0], [1.0, 3.0]], dtype=np.float32)
     out = preprocess_expression(x)
-    assert out[0, 0] < 0
+    assert np.all(out >= 0)
+    assert np.all(out <= 1)
+    assert np.isclose(out[0, 0], 0.0)
+    assert np.isclose(out[0, 1], 1.0)
 
 
 def test_architecture_defaults():

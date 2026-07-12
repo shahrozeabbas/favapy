@@ -11,8 +11,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Build and verify package
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+          python -m pip install dist/*.whl
+          python -c 'from favapy import FAVA; print(FAVA.__module__)'
+
   test:
     runs-on: ${{ matrix.os }}
+    needs: package
     defaults:
       run:
         shell: bash -e {0}
@@ -29,7 +46,6 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python }}
-      DATA_DIR: ${{ github.workspace }}/data
 
     steps:
       - uses: actions/checkout@v4
@@ -43,16 +59,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel
-          pip install '.[test]'
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          python -m pip install '.[test]' \
+            --index-url https://download.pytorch.org/whl/cpu \
+            --extra-index-url https://pypi.org/simple
 
       - name: Test
         env:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
         run: |
-          pytest -v --cov --color=yes
+          pytest -v --cov=favapy --cov-report=xml --color=yes
+
+      - name: Upload coverage
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
